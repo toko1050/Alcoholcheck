@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -354,13 +355,8 @@
     function sendToSpreadsheet(event) {
         event.preventDefault(); // 通常のフォーム送信をキャンセル
         
-        // 【重要】ここにステップ1でコピーしたGASのウェブアプリURLを貼り付けてください
+        // あなたの設定したGASのウェブアプリURL
         const gasUrl = "https://script.google.com/macros/s/AKfycbyYTKKl0FPxNfGyky2WHWong51thga3u7fuz-lTIlRkjZN6ax8s1bTgxsBTCGGESb1I4A/exec"; 
-
-        if(gasUrl === "https://script.google.com/macros/s/AKfycbyYTKKl0FPxNfGyky2WHWong51thga3u7fuz-lTIlRkjZN6ax8s1bTgxsBTCGGESb1I4A/exec") {
-            alert("GASのURLが設定されていません。コード内のgasUrlを書き換えてください。");
-            return;
-        }
 
         // 連打・二重送信防止
         const submitBtn = document.querySelector('.submit-btn');
