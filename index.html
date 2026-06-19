@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -164,6 +163,14 @@
         .submit-btn:hover {
             background-color: var(--primary-hover);
         }
+
+        /* ボタン無効化時のスタイル（連打防止） */
+        .submit-btn:disabled {
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -171,7 +178,7 @@
 <div class="container">
     <h2>アルコールチェック入力</h2>
     
-    <form id="alcoholForm" onsubmit="sendEmail(event)">
+    <form id="alcoholForm" onsubmit="sendToSpreadsheet(event)">
         
         <div class="form-group">
             <label class="required" for="driverName">① 運転者氏名</label>
@@ -179,7 +186,7 @@
         </div>
 
         <div class="form-group">
-            <label class="required" for="carNumber">② 車両ナンバー</label>
+            <label class="required" for="carNumber">② 車量ナンバー</label>
             <input type="text" id="carNumber" placeholder="例：1234（4桁のみ）" required pattern="\d{4}" maxlength="4" inputmode="numeric">
         </div>
 
@@ -285,7 +292,7 @@
             <textarea id="remarks" placeholder="特記事項があれば入力してください"></textarea>
         </div>
 
-        <button type="submit" class="submit-btn">メールで送信する</button>
+        <button type="submit" class="submit-btn">データを送信する</button>
     </form>
 </div>
 
@@ -343,9 +350,22 @@
         document.getElementById('remote_line').required = isRequired;
     }
 
-    // メール送信処理（デバッグ・簡易動作用）
-    function sendEmail(event) {
+    // スプレッドシートへの直接送信処理
+    function sendToSpreadsheet(event) {
         event.preventDefault(); // 通常のフォーム送信をキャンセル
+        
+        // 【重要】ここにステップ1でコピーしたGASのウェブアプリURLを貼り付けてください
+        const gasUrl = "https://script.google.com/macros/s/AKfycbyYTKKl0FPxNfGyky2WHWong51thga3u7fuz-lTIlRkjZN6ax8s1bTgxsBTCGGESb1I4A/exec"; 
+
+        if(gasUrl === "https://script.google.com/macros/s/AKfycbyYTKKl0FPxNfGyky2WHWong51thga3u7fuz-lTIlRkjZN6ax8s1bTgxsBTCGGESb1I4A/exec") {
+            alert("GASのURLが設定されていません。コード内のgasUrlを書き換えてください。");
+            return;
+        }
+
+        // 連打・二重送信防止
+        const submitBtn = document.querySelector('.submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "送信中...";
         
         // 各値を取得
         const name = document.getElementById('driverName').value;
@@ -370,28 +390,38 @@
         const mileage = document.getElementById('mileage').value;
         const remarks = document.getElementById('remarks').value || "特記なし";
 
-        // メールの本文（CSVのようにカンマや改行で区切っておくと後で管理しやすいです）
-        const subject = `【アルコールチェック】${name}_${date}`;
-        const body = `アルコールチェック報告\n` +
-                     `---------------------------\n` +
-                     `①氏名: ${name}\n` +
-                     `②車両No: ${carNum}\n` +
-                     `③測定日: ${date}\n` +
-                     `④測定時間: ${time}\n` +
-                     `⑤状況: ${status}\n` +
-                     `⑥結果: ${result} mg/L\n` +
-                     `⑦酒気帯び: ${shuki}\n` +
-                     `⑧健康状態: ${health}\n` +
-                     `⑨車両点検: ${carCheck}\n` +
-                     `⑩確認方法: ${methodDetail}\n` +
-                     `⑪走行距離: ${mileage} km\n` +
-                     `⑫備考: ${remarks}`;
+        // 送信用パラメータの組み立て
+        const params = new URLSearchParams();
+        params.append('name', name);
+        params.append('carNum', carNum);
+        params.append('date', date);
+        params.append('time', time);
+        params.append('status', status);
+        params.append('result', result);
+        params.append('shuki', shuki);
+        params.append('health', health);
+        params.append('carCheck', carCheck);
+        params.append('methodDetail', methodDetail);
+        params.append('mileage', mileage);
+        params.append('remarks', remarks);
 
-        // 宛先メールアドレス（会社等の受信用アドレスをここに設定できます）
-        const mailtoAddress = "admin@example.com"; 
-
-        // mailto リンクを生成して移動（スマホのメールアプリが起動します）
-        window.location.href = `mailto:${mailtoAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        // Google Apps ScriptへデータをPOST送信
+        fetch(gasUrl, {
+            method: 'POST',
+            body: params,
+            mode: 'no-cors' // GASのセキュリティ仕様（リダイレクト）を回避する記述
+        })
+        .then(() => {
+            alert('スプレッドシートへの送信が完了しました！');
+            // ページを再読み込みしてフォームを初期化（日時も現在時刻に更新されます）
+            window.location.reload(); 
+        })
+        .catch(error => {
+            alert('送信に失敗しました。電波状況を確認してやり直してください。');
+            submitBtn.disabled = false;
+            submitBtn.innerText = "データを送信する";
+            console.error('Error:', error);
+        });
     }
 </script>
 
