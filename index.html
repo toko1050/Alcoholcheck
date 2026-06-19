@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アルコールチェック入力シート</title>
+    <style>
+        /* スカイブルー調の爽やかなデザイン */
+        :root {
+            --primary-color: #0ea5e9;       /* メインのスカイブルー */
+            --primary-hover: #0284c7;       /* ボタンホバー時 */
+            --bg-color: #f0f9ff;            /* 背景の薄い青 */
+            --text-color: #334155;          /* 文字色 */
+            --border-color: #bae6fd;        /* 枠線 */
+            --accent-color: #ef4444;        /* 酒気帯び「有り」等の警告色 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 24px;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary-hover);
+            margin-bottom: 24px;
+            font-size: 1.4rem;
+            border-bottom: 3px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .required::after {
+            content: " *";
+            color: var(--accent-color);
+        }
+
+        /* 入力コントロールの共通スタイル */
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="time"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-color);
+            background-color: #fff;
+            outline: none;
+            transition: border-color 0.2s;
+            -webkit-appearance: none; /* iOS対策 */
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* 読み取り専用（自動出力）のスタイル */
+        input[readonly] {
+            background-color: #f8fafc;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        /* ラジオボタン・選択肢の装飾 */
+        .radio-group, .select-button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .radio-label {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            background-color: #fff;
+            transition: all 0.2s;
+        }
+
+        input[type="radio"] {
+            display: none; /* 通常のラジオボタンは隠す */
+        }
+
+        /* ラジオボタンが選択されたときのスタイル */
+        input[type="radio"]:checked + .radio-label {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+
+        /* 酒気帯び「有り」の時だけ赤くする特殊設定 */
+        input[id="shuki_yes"]:checked + .radio-label {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        /* 条件付き表示エリア */
+        .conditional-fields {
+            background-color: #f0f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            margin-top: 10px;
+            display: none; /* 初期状態は非表示 */
+        }
+
+        textarea {
+            resize: vertical;
+            height: 80px;
+        }
+
+        /* 送信ボタン */
+        .submit-btn {
+            display: block;
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+            transition: background-color 0.2s;
+            margin-top: 24px;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* ボタン無効化時のスタイル（連打防止） */
+        .submit-btn:disabled {
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>アルコールチェック入力</h2>
+    
+    <form id="alcoholForm" onsubmit="sendToSpreadsheet(event)">
+        
+        <div class="form-group">
+            <label class="required" for="driverName">① 運転者氏名</label>
+            <input type="text" id="driverName" placeholder="例：山田（苗字のみ）" required pattern="^[^\s]+$">
+        </div>
+
+        <div class="form-group">
+            <label class="required" for="carNumber">② 車量ナンバー</label>
+            <input type="text" id="carNumber" placeholder="例：1234（4桁のみ）" required pattern="\d{4}" maxlength="4" inputmode="numeric">
+        </div>
+
+        <div class="form-group">
+            <label id="dateLabel">③ 測定日（自動出力）</label>
+            <input type="date" id="measureDate" readonly>
+        </div>
+
+        <div class="form-group">
+            <label id="timeLabel">④ 測定時間（自動出力）</label>
+            <input type="time" id="measureTime" readonly>
+        </div>
+
+        <div class="form-group">
+            <label class="required">⑤ 測定時状況</label>
+            <div class="radio-group">
+                <input type="radio" id="status_before" name="status" value="出発前" checked>
+                <label for="status_before" class="radio-label">出発前</label>
+                
+                <input type="radio" id="status_after" name="status" value="帰社後">
+                <label for="status_after" class="radio-label">帰社後</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="required" for="resultValue">⑥ 測定結果 (mg/L)</label>
+            <input type="number" id="resultValue" step="0.01" min="0" placeholder="例：0.00" required inputmode="decimal" oninput="autoCheckShuki(this.value)">
+        </div>
+
+        <div class="form-group">
+            <label class="required">⑦ 酒気帯び</label>
+            <div class="radio-group">
+                <input type="radio" id="shuki_no" name="shuki" value="無し" checked>
+                <label for="shuki_no" class="radio-label">無し</label>
+                
+                <input type="radio" id="shuki_yes" name="shuki" value="有り">
+                <label for="shuki_yes" class="radio-label">有り</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="required">⑧ 健康状態</label>
+            <div class="radio-group">
+                <input type="radio" id="health_good" name="health" value="◯" checked>
+                <label for="health_good" class="radio-label">◯</label>
+                
+                <input type="radio" id="health_warm" name="health" value="△">
+                <label for="health_warm" class="radio-label">△</label>
+
+                <input type="radio" id="health_bad" name="health" value="✕">
+                <label for="health_bad" class="radio-label">✕</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="required">⑨ 車両点検</label>
+            <div class="radio-group">
+                <input type="radio" id="car_good" name="car_check" value="◯" checked>
+                <label for="car_good" class="radio-label">◯</label>
+                
+                <input type="radio" id="car_warm" name="car_check" value="△">
+                <label for="car_warm" class="radio-label">△</label>
+
+                <input type="radio" id="car_bad" name="car_check" value="✕">
+                <label for="car_bad" class="radio-label">✕</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="required">⑩ 確認方法</label>
+            <div class="radio-group">
+                <input type="radio" id="method_face" name="method" value="対面" onchange="toggleMethodFields()">
+                <label for="method_face" class="radio-label">対面</label>
+                
+                <input type="radio" id="method_remote" name="method" value="非対面" onchange="toggleMethodFields()">
+                <label for="method_remote" class="radio-label">非対面</label>
+            </div>
+
+            <div id="faceFields" class="conditional-fields">
+                <label class="required" for="checkerName">確認者氏名</label>
+                <input type="text" id="checkerName" placeholder="確認者の苗字">
+            </div>
+
+            <div id="remoteFields" class="conditional-fields">
+                <label class="required">非対面確認手段</label>
+                <div class="radio-group">
+                    <input type="radio" id="remote_video" name="remote_detail" value="動画撮影">
+                    <label for="remote_video" class="radio-label" style="font-size:0.85rem;">動画撮影</label>
+                    
+                    <input type="radio" id="remote_line" name="remote_detail" value="ライン電話確認">
+                    <label for="remote_line" class="radio-label" style="font-size:0.85rem;">ﾗｲﾝ電話確認</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="required" for="mileage">⑪ 走行距離 (メーター参照)</label>
+            <input type="number" id="mileage" placeholder="例：12345" required inputmode="numeric">
+        </div>
+
+        <div class="form-group">
+            <label for="remarks">⑫ 備考欄</label>
+            <textarea id="remarks" placeholder="特記事項があれば入力してください"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">データを送信する</button>
+    </form>
+</div>
+
+<script>
+    // ページ読み込み時に日時を自動設定
+    window.addEventListener('DOMContentLoaded', () => {
+        const now = new Date();
+        
+        // 日付の設定 (YYYY-MM-DD)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        document.getElementById('measureDate').value = `${year}-${month}-${day}`;
+        
+        // 時刻の設定 (HH:MM)
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('measureTime').value = `${hours}:${minutes}`;
+    });
+
+    // ⑥の測定結果が0より大きい場合、⑦の酒気帯びを自動で「有り」にする補助機能
+    function autoCheckShuki(val) {
+        if (parseFloat(val) > 0) {
+            document.getElementById('shuki_yes').checked = true;
+        } else if (parseFloat(val) === 0) {
+            document.getElementById('shuki_no').checked = true;
+        }
+    }
+
+    // ⑩ 確認方法による表示切り替え
+    function toggleMethodFields() {
+        const isFace = document.getElementById('method_face').checked;
+        const isRemote = document.getElementById('method_remote').checked;
+        
+        const faceFields = document.getElementById('faceFields');
+        const remoteFields = document.getElementById('remoteFields');
+        
+        const checkerName = document.getElementById('checkerName');
+        
+        if (isFace) {
+            faceFields.style.display = 'block';
+            remoteFields.style.display = 'none';
+            checkerName.required = true;
+            setRemoteRequired(false);
+        } else if (isRemote) {
+            faceFields.style.display = 'none';
+            remoteFields.style.display = 'block';
+            checkerName.required = false;
+            setRemoteRequired(true);
+        }
+    }
+
+    function setRemoteRequired(isRequired) {
+        document.getElementById('remote_video').required = isRequired;
+        document.getElementById('remote_line').required = isRequired;
+    }
+
+    // スプレッドシートへの直接送信処理
+    function sendToSpreadsheet(event) {
+        event.preventDefault(); // 通常のフォーム送信をキャンセル
+        
+        // あなたの設定したGASのウェブアプリURL
+        const gasUrl = "https://script.google.com/macros/s/AKfycbyYTKKl0FPxNfGyky2WHWong51thga3u7fuz-lTIlRkjZN6ax8s1bTgxsBTCGGESb1I4A/exec"; 
+
+        // 連打・二重送信防止
+        const submitBtn = document.querySelector('.submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "送信中...";
+        
+        // 各値を取得
+        const name = document.getElementById('driverName').value;
+        const carNum = document.getElementById('carNumber').value;
+        const date = document.getElementById('measureDate').value;
+        const time = document.getElementById('measureTime').value;
+        const status = document.querySelector('input[name="status"]:checked').value;
+        const result = document.getElementById('resultValue').value;
+        const shuki = document.querySelector('input[name="shuki"]:checked').value;
+        const health = document.querySelector('input[name="health"]:checked').value;
+        const carCheck = document.querySelector('input[name="car_check"]:checked').value;
+        
+        // 確認方法の詳細取得
+        let methodDetail = document.querySelector('input[name="method"]:checked')?.value || "未選択";
+        if (methodDetail === "対面") {
+            methodDetail += ` (確認者: ${document.getElementById('checkerName').value})`;
+        } else if (methodDetail === "非対面") {
+            const remoteVal = document.querySelector('input[name="remote_detail"]:checked')?.value || "未選択";
+            methodDetail += ` (${remoteVal})`;
+        }
+
+        const mileage = document.getElementById('mileage').value;
+        const remarks = document.getElementById('remarks').value || "特記なし";
+
+        // 送信用パラメータの組み立て
+        const params = new URLSearchParams();
+        params.append('name', name);
+        params.append('carNum', carNum);
+        params.append('date', date);
+        params.append('time', time);
+        params.append('status', status);
+        params.append('result', result);
+        params.append('shuki', shuki);
+        params.append('health', health);
+        params.append('carCheck', carCheck);
+        params.append('methodDetail', methodDetail);
+        params.append('mileage', mileage);
+        params.append('remarks', remarks);
+
+        // Google Apps ScriptへデータをPOST送信
+        fetch(gasUrl, {
+            method: 'POST',
+            body: params,
+            mode: 'no-cors' // GASのセキュリティ仕様（リダイレクト）を回避する記述
+        })
+        .then(() => {
+            alert('スプレッドシートへの送信が完了しました！');
+            // ページを再読み込みしてフォームを初期化（日時も現在時刻に更新されます）
+            window.location.reload(); 
+        })
+        .catch(error => {
+            alert('送信に失敗しました。電波状況を確認してやり直してください。');
+            submitBtn.disabled = false;
+            submitBtn.innerText = "データを送信する";
+            console.error('Error:', error);
+        });
+    }
+</script>
+
+</body>
+</html>
