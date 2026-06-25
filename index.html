@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -182,11 +183,23 @@
         
         <div class="form-group">
             <label class="required" for="driverName">① 運転者氏名</label>
-            <input type="text" id="driverName" placeholder="例：山田（苗字のみ）" required pattern="^[^\s]+$">
+            <select id="driverName" required>
+                <option value="">選択してください</option>
+                <option value="所" data-kana="ところ">所</option>
+                <option value="大和田" data-kana="おおわだ">大和田</option>
+                <option value="木村" data-kana="きむら">木村</option>
+                <option value="棚澤" data-kana="たなざわ">棚澤</option>
+                <option value="森(太)" data-kana="もり">森(太)</option>
+                <option value="加藤" data-kana="かとう">加藤</option>
+                <option value="上野" data-kana="うえの">上野</option> 
+                <option value="" data-kana=""></option> 
+                <option value="" data-kana=""></option>
+                <option value="" data-kana=""></option>
+            </select>
         </div>
 
         <div class="form-group">
-            <label class="required" for="carNumber">② 車量ナンバー</label>
+            <label class="required" for="carNumber">② 車両ナンバー</label>
             <input type="text" id="carNumber" placeholder="例：1234（4桁のみ）" required pattern="\d{4}" maxlength="4" inputmode="numeric">
         </div>
 
@@ -297,7 +310,7 @@
 </div>
 
 <script>
-    // ページ読み込み時に日時を自動設定
+    // ページ読み込み時に日時を自動設定 ＆ 前回送信した名前を記憶から復元
     window.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         
@@ -311,6 +324,12 @@
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         document.getElementById('measureTime').value = `${hours}:${minutes}`;
+
+        // 🛠️ 追加：スマホに保存されている前回の名前があれば自動選択する
+        const savedDriver = localStorage.getItem('lastSelectedDriver');
+        if (savedDriver) {
+            document.getElementById('driverName').value = savedDriver;
+        }
     });
 
     // ⑥の測定結果が0より大きい場合、⑦の酒気帯びを自動で「有り」にする補助機能
@@ -354,21 +373,19 @@
     function sendToSpreadsheet(event) {
         event.preventDefault(); // 通常のフォーム送信をキャンセル
         
-        // 【重要】ここにステップ1でコピーしたGASのウェブアプリURLを貼り付けてください
         const gasUrl = "https://script.google.com/macros/s/AKfycbxQhc56qnx6FOnTmpWh_ZlBFqKcosipIssGZiC5LPtqBsg_A2dMSOVs_VBVCmJTX4ZDQw/exec"; 
-
-        if(gasUrl === "https://script.google.com/macros/s/AKfycbxQhc56qnx6FOnTmpWh_ZlBFqKcosipIssGZiC5LPtqBsg_A2dMSOVs_VBVCmJTX4ZDQw/exec") {
-            alert("GASのURLが設定されていません。コード内のgasUrlを書き換えてください。");
-            return;
-        }
 
         // 連打・二重送信防止
         const submitBtn = document.querySelector('.submit-btn');
         submitBtn.disabled = true;
         submitBtn.innerText = "送信中...";
         
-        // 各値を取得
-        const name = document.getElementById('driverName').value;
+        // 🛠️ 修正：選択された名前と、その裏に仕込んだ「よみがな」を自動取得する
+        const driverSelect = document.getElementById('driverName');
+        const name = driverSelect.value;
+        const selectedOption = driverSelect.options[driverSelect.selectedIndex];
+        const kana = selectedOption ? selectedOption.getAttribute('data-kana') : ''; 
+
         const carNum = document.getElementById('carNumber').value;
         const date = document.getElementById('measureDate').value;
         const time = document.getElementById('measureTime').value;
@@ -390,9 +407,13 @@
         const mileage = document.getElementById('mileage').value;
         const remarks = document.getElementById('remarks').value || "特記なし";
 
+        // 🛠️ 追加：送信が成功する直前に、選択した名前をスマホの記憶（LocalStorage）に保存
+        localStorage.setItem('lastSelectedDriver', name);
+
         // 送信用パラメータの組み立て
         const params = new URLSearchParams();
         params.append('name', name);
+        params.append('kana', kana); // 裏でよみがなも一緒に送信（スプレッドシートの並び替え用）
         params.append('carNum', carNum);
         params.append('date', date);
         params.append('time', time);
@@ -409,11 +430,10 @@
         fetch(gasUrl, {
             method: 'POST',
             body: params,
-            mode: 'no-cors' // GASのセキュリティ仕様（リダイレクト）を回避する記述
+            mode: 'no-cors'
         })
         .then(() => {
             alert('スプレッドシートへの送信が完了しました！');
-            // ページを再読み込みしてフォームを初期化（日時も現在時刻に更新されます）
             window.location.reload(); 
         })
         .catch(error => {
